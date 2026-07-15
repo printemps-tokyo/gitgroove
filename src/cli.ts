@@ -86,6 +86,7 @@ async function main(): Promise<number> {
     }).values;
   } catch (err) {
     process.stderr.write(`error: ${(err as Error).message}\n`);
+    process.stderr.write("run 'gitgroove --help' for usage.\n");
     return 1;
   }
 
