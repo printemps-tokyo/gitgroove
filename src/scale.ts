@@ -35,7 +35,11 @@ export function quantize(value: number, rootMidi: number, scale: number[], octav
   return degreeToMidi(degree, rootMidi, scale);
 }
 
-/** Resolve a scale name to its offsets, defaulting to pentatonic minor. */
+/** Resolve a scale name to its offsets. Throws for unknown names. */
 export function resolveScale(name: ScaleName): number[] {
-  return SCALES[name] ?? SCALES["pentatonic-minor"]!;
+  const scale = SCALES[name];
+  if (!scale) {
+    throw new Error(`unknown scale "${name}"; valid scales: ${Object.keys(SCALES).join(", ")}`);
+  }
+  return scale;
 }

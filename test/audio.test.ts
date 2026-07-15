@@ -68,9 +68,16 @@ describe("encodeWav", () => {
 });
 
 describe("scale", () => {
-  it("resolves named scales and defaults safely", () => {
+  it("resolves named scales", () => {
     expect(resolveScale("blues")).toEqual([0, 3, 5, 6, 7, 10]);
-    expect(resolveScale("nonexistent")).toEqual([0, 3, 5, 7, 10]);
+    expect(resolveScale("pentatonic-minor")).toEqual([0, 3, 5, 7, 10]);
+  });
+
+  it("throws for unknown scale names, listing the valid ones", () => {
+    expect(() => resolveScale("bluez")).toThrow(/unknown scale "bluez"/);
+    expect(() => resolveScale("bluez")).toThrow(
+      /pentatonic-minor, pentatonic-major, major, minor, dorian, blues/,
+    );
   });
 
   it("wraps degrees into higher octaves", () => {

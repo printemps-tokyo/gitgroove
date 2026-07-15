@@ -6,6 +6,7 @@ import { compose } from "./compose.js";
 import { renderTimeline } from "./pcm.js";
 import { encodeWav } from "./wav.js";
 import { resolveScale, SCALES } from "./scale.js";
+import { parseIntegerFlag, parseNumberFlag } from "./options.js";
 import { renderSummary } from "./render.js";
 import { playWav } from "./play.js";
 
@@ -90,11 +91,25 @@ async function main(): Promise<number> {
 
   const output = values.output ?? "gitgroove.wav";
 
+  let limit: number | undefined;
+  let bpm: number | undefined;
+  let rootMidi: number | undefined;
+  let scale: number[] | undefined;
+  try {
+    if (values.limit !== undefined) limit = parseIntegerFlag("limit", values.limit, 1);
+    if (values.bpm !== undefined) bpm = parseNumberFlag("bpm", values.bpm, 20, 400);
+    if (values.root !== undefined) rootMidi = parseIntegerFlag("root", values.root, 0, 127);
+    if (values.scale !== undefined) scale = resolveScale(values.scale);
+  } catch (err) {
+    process.stderr.write(`error: ${(err as Error).message}\n`);
+    return 1;
+  }
+
   let commits;
   try {
     commits = await readCommits({
       cwd: values.repo,
-      limit: values.limit ? Number(values.limit) : undefined,
+      limit,
       path: values.path,
     });
   } catch (err) {
@@ -108,9 +123,9 @@ async function main(): Promise<number> {
   }
 
   const composition = compose(commits, {
-    bpm: values.bpm ? Number(values.bpm) : undefined,
-    scale: values.scale ? resolveScale(values.scale) : undefined,
-    rootMidi: values.root ? Number(values.root) : undefined,
+    bpm,
+    scale,
+    rootMidi,
     drums: !values["no-drums"],
   });
 
