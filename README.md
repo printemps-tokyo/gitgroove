@@ -31,7 +31,7 @@ file, and optional playback.
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 22
 - `git` on your PATH
 
 ## Install
