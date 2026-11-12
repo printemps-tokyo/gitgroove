@@ -71,9 +71,9 @@ export async function readCommits(opts: GitLogOptions = {}): Promise<Commit[]> {
   } catch (err) {
     const message = (err as { stderr?: string; message?: string }).stderr || (err as Error).message;
     if (/not a git repository/i.test(message)) {
-      throw new Error("not a git repository (run gitgroove inside a repo, or pass --repo <path>)");
+      throw new Error("not a git repository (run gitgroove inside a repo, or pass --repo <path>)", { cause: err });
     }
-    throw new Error(`git log failed: ${message.trim()}`);
+    throw new Error(`git log failed: ${message.trim()}`, { cause: err });
   }
 
   // git log is newest-first; reverse to play history forwards.
