@@ -1,6 +1,6 @@
 {
   "name": "@printemps-tokyo/gitgroove",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn a git repository's history into a chiptune WAV. Zero-dependency CLI.",
   "type": "module",
   "license": "MIT",

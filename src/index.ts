@@ -23,3 +23,6 @@ export type { GitLogOptions } from "./git.js";
 
 export { renderSummary, melodySparkline } from "./render.js";
 export { playWav, playerCommand } from "./play.js";
+export { writeMidi, vlq, TICKS_PER_QUARTER, type MidiNote, type MidiTrack } from "./midi.js";
+export { toMidiTracks } from "./compose.js";
+export { readBranchCommits } from "./git.js";

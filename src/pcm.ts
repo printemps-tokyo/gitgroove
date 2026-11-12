@@ -66,6 +66,10 @@ export interface Note {
   midi: number;
   wave: Waveform;
   gain: number;
+  /** Which part of the arrangement plays it (for MIDI tracks). */
+  part?: "melody" | "bass" | "drums";
+  /** The melody voice: an author's e-mail or a branch name. */
+  voice?: string;
 }
 
 /** Render one note additively onto a float buffer (mutates `buffer`). */

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
-import { readCommits } from "./git.js";
-import { compose } from "./compose.js";
+import { readBranchCommits, readCommits } from "./git.js";
+import { compose, toMidiTracks } from "./compose.js";
+import { writeMidi } from "./midi.js";
 import { renderTimeline } from "./pcm.js";
 import { encodeWav } from "./wav.js";
 import { resolveScale, SCALES } from "./scale.js";
@@ -12,7 +13,7 @@ import { playWav } from "./play.js";
 
 const SAMPLE_RATE = 44100;
 
-const HELP = `gitgroove - turn a git repository's history into a chiptune WAV
+const HELP = `gitgroove - turn a git repository's history into a chiptune WAV or MIDI file
 
 Usage:
   gitgroove [options]                Sonify the current repo -> gitgroove.wav
@@ -24,7 +25,13 @@ time. The result is deterministic - the same history always sounds the same.
 
 Options:
   --repo <path>       Repository to read (default: current directory)
-  -o, --output <path> Output WAV path (default: gitgroove.wav)
+  -o, --output <path> Output path; .mid or .midi writes MIDI (one track per
+                      voice, plus bass and drums), anything else WAV
+                      (default: gitgroove.wav)
+  --branches <list>   Give each branch its own voice (and MIDI track): a comma
+                      list, or "all" (the current branch, then the others).
+                      Each branch plays the commits it adds beyond the
+                      branches before it
   --limit <n>         Use only the most recent n commits
   --path <pathspec>   Only commits touching this path
   --bpm <n>           Tempo in beats per minute (default: 200)
@@ -40,6 +47,7 @@ Examples:
   gitgroove
   gitgroove --limit 200 --bpm 240 --scale blues --play
   gitgroove --repo ../other-project -o song.wav
+  gitgroove -o history.mid --branches all
 `;
 
 async function readVersion(): Promise<string> {
@@ -82,6 +90,7 @@ async function main(): Promise<number> {
         "no-drums": { type: "boolean", default: false },
         play: { type: "boolean", default: false },
         "no-color": { type: "boolean", default: false },
+        branches: { type: "string" },
       },
     }).values;
   } catch (err) {
@@ -106,13 +115,27 @@ async function main(): Promise<number> {
     return 1;
   }
 
+  const midi = /\.midi?$/i.test(output);
+  if (midi && values.play) {
+    process.stderr.write("error: --play plays WAV output; write a .wav, or open the .mid in a player\n");
+    return 1;
+  }
+
   let commits;
   try {
-    commits = await readCommits({
-      cwd: values.repo,
-      limit,
-      path: values.path,
-    });
+    commits =
+      values.branches !== undefined
+        ? await readBranchCommits({
+            cwd: values.repo,
+            limit,
+            path: values.path,
+            branches: values.branches === "all" ? undefined : values.branches.split(",").map((b) => b.trim()).filter((b) => b !== ""),
+          })
+        : await readCommits({
+            cwd: values.repo,
+            limit,
+            path: values.path,
+          });
   } catch (err) {
     process.stderr.write(`error: ${(err as Error).message}\n`);
     return 1;
@@ -128,12 +151,14 @@ async function main(): Promise<number> {
     scale,
     rootMidi,
     drums: !values["no-drums"],
+    voiceBy: values.branches !== undefined ? "branch" : "author",
   });
 
-  const samples = renderTimeline(composition.notes, composition.durationSec, SAMPLE_RATE);
-  const wav = encodeWav(samples, SAMPLE_RATE);
+  const bytes = midi
+    ? writeMidi(toMidiTracks(composition), 60 / composition.beatSec)
+    : encodeWav(renderTimeline(composition.notes, composition.durationSec, SAMPLE_RATE), SAMPLE_RATE);
   try {
-    await writeFile(output, wav);
+    await writeFile(output, bytes);
   } catch (err) {
     process.stderr.write(`error: could not write ${output}: ${(err as Error).message}\n`);
     return 1;

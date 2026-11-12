@@ -79,3 +79,45 @@ export async function readCommits(opts: GitLogOptions = {}): Promise<Commit[]> {
   // git log is newest-first; reverse to play history forwards.
   return parseGitLog(stdout).reverse();
 }
+
+/**
+ * Commits of several branches, oldest first, each tagged with the branch
+ * that adds it: the first branch gets its whole history, every later one
+ * only the commits the branches before it do not have (`git log b ^a ...`). Without `branches`, the current branch comes first, then the
+ * other local branches by name.
+ */
+export async function readBranchCommits(opts: GitLogOptions & { branches?: string[] } = {}): Promise<Commit[]> {
+  const git = async (args: string[]): Promise<string> => {
+    try {
+      return (await pexecFile("git", args, { cwd: opts.cwd, maxBuffer: 256 * 1024 * 1024 })).stdout;
+    } catch (err) {
+      const message = (err as { stderr?: string; message?: string }).stderr || (err as Error).message;
+      if (/not a git repository/i.test(message)) {
+        throw new Error("not a git repository (run gitgroove inside a repo, or pass --repo <path>)", { cause: err });
+      }
+      throw new Error(`git failed: ${message.trim()}`, { cause: err });
+    }
+  };
+  let branches = opts.branches;
+  if (!branches || branches.length === 0) {
+    const all = (await git(["for-each-ref", "--format=%(refname:short)", "refs/heads"]))
+      .split("\n")
+      .filter((b) => b !== "")
+      .sort();
+    const current = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+    branches = all.includes(current) ? [current, ...all.filter((b) => b !== current)] : all;
+  }
+  if (branches.length === 0) throw new Error("the repository has no branches");
+  const out: Commit[] = [];
+  for (const [i, branch] of branches.entries()) {
+    // After --end-of-options every argument is a revision; ^b excludes b.
+    const args = ["log", `--pretty=format:${FORMAT}`, "--numstat", "--no-color", "--end-of-options", branch];
+    args.push(...branches.slice(0, i).map((b) => `^${b}`));
+    if (opts.path) args.push("--", opts.path);
+    for (const c of parseGitLog(await git(args))) out.push({ ...c, branch });
+  }
+  // Oldest first; a stable sort keeps each branch's own order on ties.
+  out.reverse();
+  out.sort((a, b) => a.timestampSec - b.timestampSec);
+  return opts.limit && opts.limit > 0 ? out.slice(-opts.limit) : out;
+}

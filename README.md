@@ -1,6 +1,6 @@
 # gitgroove
 
-> Turn a git repository's history into a chiptune WAV. Zero-dependency CLI.
+> Turn a git repository's history into a chiptune WAV or a MIDI file. Zero-dependency CLI.
 
 [![CI](https://github.com/printemps-tokyo/gitgroove/actions/workflows/ci.yml/badge.svg)](https://github.com/printemps-tokyo/gitgroove/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -53,12 +53,15 @@ gitgroove --limit 200 --bpm 240 --play     # recent history, faster, play it
 gitgroove --scale blues -o song.wav        # a bluesier arrangement
 gitgroove --repo ../other-project          # a different repository
 gitgroove --path src --no-drums            # only src/, melody + bass only
+gitgroove -o history.mid                   # MIDI: open it in a DAW
+gitgroove --branches all -o branches.mid   # a voice (and track) per branch
 ```
 
 | Option | Description |
 | --- | --- |
 | `--repo <path>` | Repository to read (default: current directory) |
-| `-o, --output <path>` | Output WAV path (default: `gitgroove.wav`) |
+| `-o, --output <path>` | Output path; `.mid` / `.midi` writes MIDI, anything else WAV (default: `gitgroove.wav`) |
+| `--branches <list>` | A voice per branch instead of per author: a comma list, or `all` |
 | `--limit <n>` | Use only the most recent n commits |
 | `--path <pathspec>` | Only commits touching this path |
 | `--bpm <n>` | Tempo in beats per minute (default: 200) |
@@ -67,6 +70,23 @@ gitgroove --path src --no-drums            # only src/, melody + bass only
 | `--no-drums` | Drop the bass drum / hi-hat track |
 | `--play` | Play the WAV after writing (uses `afplay` / `aplay` / PowerShell) |
 | `--no-color` | Disable ANSI colors |
+
+### MIDI
+
+With a `.mid` output, gitgroove writes a Standard MIDI File (format 1, 480
+ticks per quarter note, the tempo of `--bpm`) instead of rendering audio: one
+track per melody voice, named after the author (or branch), on a General MIDI
+lead sound that matches its chiptune waveform (square, sawtooth, calliope,
+chiff); a Synth Bass track; and the drums on channel 10 (bass drum and closed
+hi-hat). Open it in a DAW or notation program and swap the instruments.
+
+### Branches
+
+`--branches all` (or `--branches main,feature/x`) gives each branch its own
+voice: the first branch plays its whole history, each later one only the
+commits the branches before it do not have (`git log feature ^main`). Without
+a list, the current branch comes first, then the other local branches by name.
+All commits play in time order; in MIDI each branch is a track.
 
 ## How the music is made
 
